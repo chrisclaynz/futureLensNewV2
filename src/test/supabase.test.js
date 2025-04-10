@@ -1,9 +1,10 @@
-import { supabase } from '../app.js';
+import { supabase } from './setup.js';
 
 describe('Supabase Integration', () => {
     test('should initialize Supabase client', () => {
         expect(supabase).toBeDefined();
-        expect(supabase.auth).toBeDefined();
+        expect(supabase.from).toBeDefined();
+        expect(typeof supabase.from).toBe('function');
     });
 
     test('should be able to get session', async () => {
