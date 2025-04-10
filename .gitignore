@@ -9,16 +9,19 @@ yarn-error.log
 .env.local
 .env.*.local
 
+# Build output
+dist/
+build/
+
 # IDE and editor files
 .idea/
 .vscode/
 *.swp
 *.swo
-.DS_Store
 
-# Build files
-dist/
-build/
+# OS files
+.DS_Store
+Thumbs.db
 
 # Test coverage
 coverage/

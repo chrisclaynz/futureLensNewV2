@@ -6,21 +6,21 @@
 
 * **Repository & Init**
 
-  * Create a Git repository
+  * ✅ Create a Git repository
 
-  * Initialise the project structure (`index.html`, `src/`, etc.)
+  * ✅ Initialise the project structure (`index.html`, `src/`, etc.)
 
-  * Install baseline dependencies (e.g. `jest` if needed)
+  * ✅ Install baseline dependencies (e.g. `jest` if needed)
 
-  * Add a sample test to ensure environment is working
+  * ✅ Add a sample test to ensure environment is working
 
 * **Supabase Client**
 
-  * Install `@supabase/supabase-js`
+  * ✅ Install `@supabase/supabase-js`
 
-  * Create a `main.js` or `app.js` that initialises the Supabase client with your URL and key
+  * ✅ Create a `main.js` or `app.js` that initialises the Supabase client with your URL and key
 
-  * Test the connection by calling `supabase.auth.getSession()` (mock or real)
+  * ✅ Test the connection by calling `supabase.auth.getSession()` (mock or real)
 
 ### **2\. Database Schema & Row-Level Security**
 
@@ -44,7 +44,7 @@
 
   * Confirm tables exist
 
-  * Confirm policies behave as expected (e.g. user cannot see others’ rows)
+  * Confirm policies behave as expected (e.g. user cannot see others' rows)
 
 ### **3\. Basic Auth & Passcode Verification**
 
@@ -52,7 +52,7 @@
 
   * Field for passcode/survey code
 
-  * A “Submit”/“Login” button
+  * A "Submit"/"Login" button
 
 * **`auth.js`**
 
@@ -88,9 +88,9 @@
 
 * **Render**
 
-  * `displayQuestion(question)`: show text, Likert scale, “I Don’t Understand” checkbox
+  * `displayQuestion(question)`: show text, Likert scale, "I Don't Understand" checkbox
 
-  * “Next” / “Back” buttons (optional immediate or iterative approach)
+  * "Next" / "Back" buttons (optional immediate or iterative approach)
 
 * **Survey Tests**
 
@@ -130,7 +130,7 @@
 
 * **Saving Optional**
 
-  * “Save Now” button for partial optional answers
+  * "Save Now" button for partial optional answers
 
   * Sync partial data if user leaves partway
 
@@ -146,7 +146,7 @@
 
 * **`results.js`** or a module
 
-  * `calculateScores(participantId)`: fetch user’s responses from Supabase, compute average
+  * `calculateScores(participantId)`: fetch user's responses from Supabase, compute average
 
   * Handle positive/negative alignment (if needed)
 
@@ -154,7 +154,7 @@
 
 * **Minimal Group Comparison (Placeholder)**
 
-  * A stub that either shows “Compare with My Group” is coming soon
+  * A stub that either shows "Compare with My Group" is coming soon
 
   * OR fetch basic group average from `responses` by cohort
 
@@ -194,7 +194,7 @@
 
 * **Comprehensive Tests**
 
-  * RLS checks (cannot see other participants’ data)
+  * RLS checks (cannot see other participants' data)
 
   * Offline → Online transitions
 
@@ -230,7 +230,7 @@ Use these as a roadmap for future enhancements. You can re-order or prioritise b
 
    * More refined summary: outlier warnings, distribution charts
 
-   * Compare user’s score vs. cohort average
+   * Compare user's score vs. cohort average
 
 3. **Reflection Prompts**
 
@@ -246,13 +246,13 @@ Use these as a roadmap for future enhancements. You can re-order or prioritise b
 
 5. **Role-Based Access**
 
-   * Distinguish “admin” vs. “teacher”
+   * Distinguish "admin" vs. "teacher"
 
    * Limit teachers to their own cohorts
 
 6. **Printable/PDF Results**
 
-   * “Print or Save as PDF” button
+   * "Print or Save as PDF" button
 
    * Minimal styling that fits one page
 
