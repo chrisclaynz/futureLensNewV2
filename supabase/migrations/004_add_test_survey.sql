@@ -4,8 +4,10 @@ VALUES ('TESTCOHORT', 'Test Cohort')
 ON CONFLICT (code) DO NOTHING;
 
 -- Create a test survey
-INSERT INTO surveys (json_config)
+INSERT INTO surveys (title, description, json_config)
 VALUES (
+    'Test Survey',
+    'This is a test survey for anonymous mode testing',
     '{
         "theme": {
             "title": "Test Survey",
@@ -49,4 +51,12 @@ VALUES (
         }
     }'::jsonb
 )
+ON CONFLICT DO NOTHING;
+
+-- Link test cohort to test survey
+INSERT INTO participants (passcode, cohort_id, survey_id)
+SELECT 'TESTCOHORT', c.id, s.id
+FROM cohorts c, surveys s
+WHERE c.code = 'TESTCOHORT'
+  AND s.title = 'Test Survey'
 ON CONFLICT DO NOTHING; 
