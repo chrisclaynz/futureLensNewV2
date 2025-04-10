@@ -1,15 +1,37 @@
 // Test setup file
 const { createClient } = require('@supabase/supabase-js');
 const dotenv = require('dotenv');
-const { beforeAll } = require('@jest/globals');
 
 // Load environment variables
 dotenv.config();
 
-// Initialize Supabase client for tests with service role key
+// Create chainable mock functions
+const createChainableMock = (returnValue = null) => {
+    const mock = jest.fn().mockReturnThis();
+    mock.mockImplementation(() => ({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: returnValue, error: null }),
+        insert: jest.fn().mockReturnThis(),
+        delete: jest.fn().mockReturnThis(),
+        update: jest.fn().mockReturnThis()
+    }));
+    return mock;
+};
+
+// Mock Supabase client
+const mockSupabase = {
+    from: createChainableMock(),
+    rpc: jest.fn().mockResolvedValue({ error: null }),
+    auth: {
+        getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null })
+    }
+};
+
+// Initialize Supabase client for tests
 const supabase = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY,
+    process.env.VITE_SUPABASE_URL || 'https://test.supabase.co',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'test-key',
     {
         db: {
             schema: 'public'
@@ -45,14 +67,14 @@ async function disableRLS() {
     }
 }
 
-// Disable RLS for tests by default
-beforeAll(async () => {
-    await disableRLS();
-});
-
 // Make supabase client and RLS functions available globally for tests
-global.supabase = supabase;
+global.supabase = mockSupabase;
 global.enableRLS = enableRLS;
 global.disableRLS = disableRLS;
 
-module.exports = { supabase, enableRLS, disableRLS }; 
+// Mock the supabaseClient module
+jest.mock('../supabaseClient', () => ({
+    supabase: mockSupabase
+}));
+
+module.exports = { supabase: mockSupabase, enableRLS, disableRLS }; 

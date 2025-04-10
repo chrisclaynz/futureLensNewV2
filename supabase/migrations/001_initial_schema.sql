@@ -58,16 +58,13 @@ BEGIN
         ON participants
         FOR SELECT
         USING (
-            auth.uid() = id OR 
             passcode = current_setting('request.headers')::json->>'passcode'
         );
 
     CREATE POLICY "Participants can insert their own data"
         ON participants
         FOR INSERT
-        WITH CHECK (
-            auth.uid() = id
-        );
+        WITH CHECK (true);
 
     -- Create policies for responses table
     CREATE POLICY "Participants can view their own responses"

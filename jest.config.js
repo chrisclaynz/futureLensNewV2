@@ -1,13 +1,11 @@
 module.exports = {
+    testEnvironment: 'jsdom',
     transform: {
         '^.+\\.jsx?$': 'babel-jest',
     },
-    testEnvironment: 'node',
-    setupFilesAfterEnv: ['./src/test/setup.js'],
-    transformIgnorePatterns: [
-        'node_modules/(?!(@supabase|.*.mjs$))'
-    ],
     moduleNameMapper: {
-        '^@/(.*)$': '<rootDir>/src/$1'
-    }
+        '\\.(css|less|sass|scss)$': '<rootDir>/__mocks__/styleMock.js',
+        '\\.(gif|ttf|eot|svg)$': '<rootDir>/__mocks__/fileMock.js',
+    },
+    setupFilesAfterEnv: ['<rootDir>/src/test/setup.js'],
 }; 

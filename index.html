@@ -3,35 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FutureLens</title>
+    <title>FutureLens Survey</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+            max-width: 600px;
             margin: 0 auto;
             padding: 20px;
         }
         .login-form {
-            margin-top: 50px;
-            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 300px;
+            margin: 0 auto;
         }
-        input, button {
+        .error-message {
+            color: red;
+            margin-top: 10px;
+        }
+        .success-message {
+            color: green;
+            margin-top: 10px;
+        }
+        .mode-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .mode-toggle button {
+            flex: 1;
             padding: 8px;
-            margin: 5px;
+            border: 1px solid #ccc;
+            background: white;
+            cursor: pointer;
+        }
+        .mode-toggle button.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
         }
     </style>
 </head>
 <body>
-    <div class="login-form">
-        <h1>FutureLens</h1>
-        <form id="loginForm">
-            <input type="text" id="passcode" placeholder="Enter passcode" required>
+    <div id="login-container">
+        <h1>Welcome to FutureLens</h1>
+        <div class="mode-toggle">
+            <button id="anonymous-mode" class="active">Anonymous Mode</button>
+            <button id="identifiable-mode">Identifiable Mode</button>
+        </div>
+        <form id="login-form" class="login-form">
+            <label for="code">Enter your code:</label>
+            <input type="text" id="code" name="code" required>
             <button type="submit">Login</button>
         </form>
+        <div id="message"></div>
     </div>
-    <div id="root"></div>
-    
-    <!-- Scripts -->
-    <script src="src/app.js" type="module"></script>
+
+    <script type="module">
+        import { handleLogin } from './src/auth.js';
+
+        const loginForm = document.getElementById('login-form');
+        const messageDiv = document.getElementById('message');
+        const anonymousModeBtn = document.getElementById('anonymous-mode');
+        const identifiableModeBtn = document.getElementById('identifiable-mode');
+        const codeInput = document.getElementById('code');
+        let currentMode = 'anonymous';
+
+        // Handle mode toggle
+        anonymousModeBtn.addEventListener('click', () => {
+            currentMode = 'anonymous';
+            anonymousModeBtn.classList.add('active');
+            identifiableModeBtn.classList.remove('active');
+            codeInput.placeholder = 'Enter survey code';
+            console.log('Switched to anonymous mode');
+        });
+
+        identifiableModeBtn.addEventListener('click', () => {
+            currentMode = 'identifiable';
+            identifiableModeBtn.classList.add('active');
+            anonymousModeBtn.classList.remove('active');
+            codeInput.placeholder = 'Enter your passcode';
+            console.log('Switched to identifiable mode');
+        });
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const code = codeInput.value;
+            
+            console.log('Attempting login with code:', code, 'in mode:', currentMode);
+            messageDiv.textContent = 'Logging in...';
+            messageDiv.className = '';
+
+            try {
+                const result = await handleLogin(code, currentMode);
+                console.log('Login result:', result);
+                
+                if (result.success) {
+                    messageDiv.textContent = 'Login successful!';
+                    messageDiv.className = 'success-message';
+                    console.log('Login successful, mode:', currentMode);
+                    
+                    // For testing purposes, just log the next steps
+                    if (currentMode === 'anonymous') {
+                        console.log('Would redirect to anonymous survey page');
+                    } else {
+                        console.log('Would redirect to identifiable survey page');
+                    }
+                } else {
+                    messageDiv.textContent = result.error || 'Login failed';
+                    messageDiv.className = 'error-message';
+                    console.error('Login failed:', result.error);
+                }
+            } catch (error) {
+                messageDiv.textContent = 'An unexpected error occurred. Please try again.';
+                messageDiv.className = 'error-message';
+                console.error('Login error:', error);
+            }
+        });
+
+        // Initial setup logging
+        console.log('Login page initialized');
+        console.log('Current mode:', currentMode);
+    </script>
 </body>
 </html> 

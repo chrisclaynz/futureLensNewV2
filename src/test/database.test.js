@@ -4,21 +4,41 @@ describe('Database Schema', () => {
     let testCohortId;
 
     beforeAll(async () => {
+        // First, ensure no test cohort exists
+        await supabase
+            .from('cohorts')
+            .delete()
+            .eq('code', 'TEST123');
+
         // Create a test cohort that we'll use for related tests
         const { data: cohort, error: cohortError } = await supabase
             .from('cohorts')
-            .insert({ code: 'TEST123', label: 'Test Cohort' })
-            .select()
+            .insert([{ 
+                code: 'TEST123', 
+                label: 'Test Cohort' 
+            }])
+            .select('*')
             .single();
 
         if (cohortError) {
             console.error('Failed to create test cohort:', cohortError);
-            throw cohortError;
+            throw new Error(`Failed to create test cohort: ${cohortError.message}`);
         }
+
+        if (!cohort || !cohort.id) {
+            throw new Error('Test cohort was not created properly - no ID returned');
+        }
+
         testCohortId = cohort.id;
+        console.log('Successfully created test cohort with ID:', testCohortId);
     });
 
     afterAll(async () => {
+        if (!testCohortId) {
+            console.warn('No test cohort ID to clean up');
+            return;
+        }
+
         // Clean up test data
         const { error } = await supabase
             .from('cohorts')
@@ -27,6 +47,7 @@ describe('Database Schema', () => {
         
         if (error) {
             console.error('Failed to clean up test cohort:', error);
+            throw new Error(`Failed to clean up test cohort: ${error.message}`);
         }
     });
 

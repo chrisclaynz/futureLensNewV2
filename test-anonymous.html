@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Anonymous Mode</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .section {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #005999;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #eee;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .progress {
+            height: 100%;
+            background: #007acc;
+            transition: width 0.3s;
+        }
+        .results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .result-card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section">
+            <h1>Test Anonymous Mode</h1>
+            <p>Enter a survey code to begin:</p>
+            <input type="text" id="surveyCode" placeholder="Enter survey code">
+            <button onclick="startSurvey()">Start Survey</button>
+        </div>
+
+        <div class="section" id="surveySection" style="display: none;">
+            <h2>Survey Questions</h2>
+            <div id="questionContainer"></div>
+            <div id="progressContainer"></div>
+        </div>
+
+        <div class="section" id="resultsSection" style="display: none;">
+            <h2>Results</h2>
+            <div id="resultsContainer"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { handleLogin } from './src/auth.js';
+        import { initSurvey, displayQuestion, recordAnswer } from './src/survey.js';
+        import { getAnonymousProgress, getAnonymousResults, displayAnonymousProgress, displayAnonymousResults } from './src/anonymous.js';
+
+        let currentQuestionIndex = 0;
+        let surveyData = null;
+
+        window.startSurvey = async function() {
+            const surveyCode = document.getElementById('surveyCode').value;
+            if (!surveyCode) {
+                alert('Please enter a survey code');
+                return;
+            }
+
+            const result = await handleLogin(surveyCode, 'anonymous');
+            if (!result.success) {
+                alert(result.error);
+                return;
+            }
+
+            // For testing, we'll use the test survey data directly
+            surveyData = {
+                statements: [
+                    {
+                        id: "test_1",
+                        text: "I enjoy testing new features.",
+                        alignment: "left",
+                        continuum: "testing",
+                        hasDontUnderstand: true
+                    },
+                    {
+                        id: "test_2",
+                        text: "Anonymous mode is useful for quick feedback.",
+                        alignment: "right",
+                        continuum: "testing",
+                        hasDontUnderstand: true
+                    }
+                ],
+                continua: {
+                    testing: {
+                        name: "Testing Preferences",
+                        description: "This continuum explores preferences for testing methods.",
+                        labels: {
+                            left: "Structured Testing",
+                            right: "Quick Testing"
+                        }
+                    }
+                }
+            };
+
+            // Store survey data
+            localStorage.setItem('survey', JSON.stringify(surveyData));
+            localStorage.setItem('questionOrder', JSON.stringify({
+                required: surveyData.statements.map(q => q.id),
+                optional: []
+            }));
+
+            document.getElementById('surveySection').style.display = 'block';
+            showQuestion();
+            updateProgress();
+        };
+
+        function showQuestion() {
+            const questionContainer = document.getElementById('questionContainer');
+            questionContainer.innerHTML = '';
+
+            const question = surveyData.statements[currentQuestionIndex];
+            const questionElement = displayQuestion(question, surveyData.continua);
+
+            // Add navigation buttons
+            const navButtons = document.createElement('div');
+            navButtons.style.marginTop = '20px';
+            navButtons.style.display = 'flex';
+            navButtons.style.gap = '10px';
+
+            if (currentQuestionIndex > 0) {
+                const backButton = document.createElement('button');
+                backButton.textContent = 'Back';
+                backButton.onclick = () => {
+                    currentQuestionIndex--;
+                    showQuestion();
+                };
+                navButtons.appendChild(backButton);
+            }
+
+            const nextButton = document.createElement('button');
+            nextButton.textContent = currentQuestionIndex === surveyData.statements.length - 1 ? 'Finish' : 'Next';
+            nextButton.onclick = async () => {
+                const selectedValue = document.querySelector('.likert-button.selected')?.dataset.value;
+                if (!selectedValue) {
+                    alert('Please select an answer');
+                    return;
+                }
+
+                const dontUnderstand = document.getElementById('dont-understand')?.checked || false;
+                await recordAnswer(question.id, parseInt(selectedValue), dontUnderstand);
+
+                if (currentQuestionIndex === surveyData.statements.length - 1) {
+                    showResults();
+                } else {
+                    currentQuestionIndex++;
+                    showQuestion();
+                }
+                updateProgress();
+            };
+            navButtons.appendChild(nextButton);
+
+            questionContainer.appendChild(questionElement);
+            questionContainer.appendChild(navButtons);
+
+            // Add click handlers for Likert scale buttons
+            document.querySelectorAll('.likert-button').forEach(button => {
+                button.onclick = () => {
+                    document.querySelectorAll('.likert-button').forEach(b => b.classList.remove('selected'));
+                    button.classList.add('selected');
+                };
+            });
+        }
+
+        async function updateProgress() {
+            const progressContainer = document.getElementById('progressContainer');
+            const progress = await getAnonymousProgress();
+            progressContainer.innerHTML = '';
+            progressContainer.appendChild(displayAnonymousProgress(progress));
+        }
+
+        async function showResults() {
+            document.getElementById('surveySection').style.display = 'none';
+            const resultsSection = document.getElementById('resultsSection');
+            resultsSection.style.display = 'block';
+
+            const resultsContainer = document.getElementById('resultsContainer');
+            const results = await getAnonymousResults();
+            resultsContainer.innerHTML = '';
+            resultsContainer.appendChild(displayAnonymousResults(results));
+        }
+    </script>
+</body>
+</html> 
