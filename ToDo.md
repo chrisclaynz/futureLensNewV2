@@ -26,77 +26,103 @@
 
 * **Create Tables** in Supabase (via SQL or migration script):
 
-  * `participants(id, passcode unique, cohort_id, survey_id, inserted_at)`
+  * ✅ `participants(id, passcode unique, cohort_id, survey_id, inserted_at)`
 
-  * `responses(id, participant_id, question_key, likert_value, dont_understand, inserted_at)`
+  * ✅ `responses(id, participant_id, question_key, likert_value, dont_understand, inserted_at)`
 
-  * `surveys(id, json_config, inserted_at)`
+  * ✅ `surveys(id, json_config, inserted_at)`
 
-  * `cohorts(id, code, label, inserted_at)`
+  * ✅ `cohorts(id, code, label, inserted_at)`
 
 * **Enable RLS**
 
-  * Turn on Row-Level Security for `participants` and `responses`
+  * ✅ Turn on Row-Level Security for `participants` and `responses`
 
-  * Write policies so users can only select/insert/update their own rows
+  * ✅ Write policies so users can only select/insert/update their own rows
 
 * **Test Schema**
 
-  * Confirm tables exist
+  * ✅ Confirm tables exist
 
-  * Confirm policies behave as expected (e.g. user cannot see others' rows)
+  * ✅ Confirm policies behave as expected (e.g. user cannot see others' rows)
 
 ### **3\. Basic Auth & Passcode Verification**
 
 * **Login Form** in `index.html`
 
-  * Field for passcode/survey code
+  * ✅ Field for passcode/survey code
 
-  * A "Submit"/"Login" button
+  * ✅ A "Submit"/"Login" button
 
 * **`auth.js`**
 
-  * `handleLogin(passcode)`
+  * ✅ `handleLogin(passcode)`
 
-    * Normalise case
+    * ✅ Normalise case
 
-    * Query Supabase (`participants`) to find matching passcode
+    * ✅ Query Supabase (`participants`) to find matching passcode
 
-    * Store `participant_id` (or relevant user data) in state or `localStorage` if found
+    * ✅ Store `participant_id` (or relevant user data) in state or `localStorage` if found
 
-    * Return success/failure
+    * ✅ Return success/failure
 
 * **Login Tests**
 
-  * Mock supabase calls
+  * ✅ Mock supabase calls
 
-  * Ensure correct passcodes succeed, incorrect fail
+  * ✅ Ensure correct passcodes succeed, incorrect fail
 
-  * Check error messages or logging
+  * ✅ Check error messages or logging
 
 ### **4\. Survey Loading & Question Display**
 
 * **`survey.js`** (or similar)
 
   * `fetchSurvey(surveyId)`: retrieve JSON config from `surveys` table
+    - Implement Supabase query to fetch survey config
+    - Handle error cases (survey not found, network issues)
+    - Cache survey data in localStorage for offline access
 
   * `initSurvey(surveyJson)`: separate or parse question config
-
-    * Shuffle required questions
-
-    * Store question order in `localStorage`
+    - Parse JSON config structure
+    - Validate required fields
+    - Shuffle required questions
+    - Store question order in `localStorage`
+    - Initialize survey state
 
 * **Render**
 
   * `displayQuestion(question)`: show text, Likert scale, "I Don't Understand" checkbox
+    - Create question container with all elements
+    - Implement Likert scale UI (-2 to 2)
+    - Add "I Don't Understand" checkbox
+    - Handle question navigation
+    - Show progress indicator
 
-  * "Next" / "Back" buttons (optional immediate or iterative approach)
+  * Navigation
+    - "Next" / "Back" buttons
+    - Progress tracking
+    - Question counter
+    - Save progress on navigation
 
 * **Survey Tests**
 
   * Mock `fetchSurvey`
+    - Test successful survey loading
+    - Test error handling
+    - Test offline behavior
 
-  * Ensure questions display in random order and remain consistent on page refresh
+  * Question Display
+    - Test random question order
+    - Test order persistence on refresh
+    - Test navigation between questions
+    - Test progress tracking
+
+  * UI Components
+    - Test Likert scale functionality
+    - Test "I Don't Understand" checkbox
+    - Test navigation buttons
+    - Test progress indicators
 
 ### **5\. Answer Submission & Offline Sync**
 
