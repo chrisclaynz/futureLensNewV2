@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline Sync Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .online {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .offline {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .response-form {
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .responses {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+    <!-- Add Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Offline Sync Test</h1>
+    
+    <div id="connection-status" class="status">
+        Connection Status: Checking...
+    </div>
+
+    <div class="response-form">
+        <h2>Test Response</h2>
+        <div>
+            <label for="question-id">Question ID:</label>
+            <input type="text" id="question-id" value="test-question-1">
+        </div>
+        <div>
+            <label for="likert-value">Likert Value:</label>
+            <select id="likert-value">
+                <option value="-2">Strongly Disagree</option>
+                <option value="-1">Disagree</option>
+                <option value="1">Agree</option>
+                <option value="2">Strongly Agree</option>
+            </select>
+        </div>
+        <div>
+            <label>
+                <input type="checkbox" id="dont-understand">
+                Don't Understand
+            </label>
+        </div>
+        <button id="save-response">Save Response</button>
+        <button id="sync-responses">Sync Responses</button>
+        <button id="clear-storage">Clear Storage</button>
+        <button id="toggle-offline">Toggle Offline Mode</button>
+    </div>
+
+    <div class="responses">
+        <h2>Stored Responses</h2>
+        <div id="local-responses"></div>
+        <div id="unsynced-responses"></div>
+    </div>
+
+    <script type="module">
+        // Mock Supabase for testing
+        const mockSupabase = {
+            from: () => ({
+                insert: async (data) => {
+                    console.log('Mock Supabase insert:', data);
+                    return { error: null };
+                }
+            })
+        };
+
+        // Mock survey functions for testing
+        const mockSurvey = {
+            saveResponse: async (questionId, likertValue, dontUnderstand) => {
+                const response = {
+                    participant_id: localStorage.getItem('participantId'),
+                    question_key: questionId,
+                    likert_value: likertValue,
+                    dont_understand: dontUnderstand,
+                    timestamp: new Date().toISOString()
+                };
+
+                if (navigator.onLine) {
+                    console.log('Saving response online:', response);
+                    try {
+                        await mockSupabase.from().insert(response);
+                    } catch (error) {
+                        console.error('Error saving online, falling back to offline:', error);
+                        saveResponseOffline(response);
+                    }
+                } else {
+                    saveResponseOffline(response);
+                }
+            },
+            syncResponses: async () => {
+                if (!navigator.onLine) {
+                    console.log('Device is offline, cannot sync responses');
+                    return false;
+                }
+
+                const unsyncedResponses = JSON.parse(localStorage.getItem('unsyncedResponses') || '[]');
+                if (unsyncedResponses.length === 0) {
+                    console.log('No unsynced responses to sync');
+                    return true;
+                }
+
+                console.log(`Syncing ${unsyncedResponses.length} responses...`);
+                const successfulSyncs = [];
+                const failedSyncs = [];
+
+                for (const response of unsyncedResponses) {
+                    try {
+                        await mockSupabase.from().insert(response);
+                        successfulSyncs.push(response);
+                    } catch (error) {
+                        console.error('Error syncing response:', error);
+                        failedSyncs.push(response);
+                    }
+                }
+
+                localStorage.setItem('unsyncedResponses', JSON.stringify(failedSyncs));
+                return failedSyncs.length === 0;
+            }
+        };
+
+        function saveResponseOffline(response) {
+            console.log('Saving response offline:', response);
+            const unsyncedResponses = JSON.parse(localStorage.getItem('unsyncedResponses') || '[]');
+            unsyncedResponses.push(response);
+            localStorage.setItem('unsyncedResponses', JSON.stringify(unsyncedResponses));
+        }
+
+        // Update connection status
+        function updateConnectionStatus() {
+            const statusElement = document.getElementById('connection-status');
+            const isOnline = navigator.onLine;
+            console.log('Connection status updated:', isOnline ? 'online' : 'offline');
+            
+            statusElement.textContent = `Connection Status: ${isOnline ? 'Online' : 'Offline'}`;
+            statusElement.className = `status ${isOnline ? 'online' : 'offline'}`;
+        }
+
+        // Display stored responses
+        function displayResponses() {
+            const localResponses = JSON.parse(localStorage.getItem('userResponses') || '{}');
+            const unsyncedResponses = JSON.parse(localStorage.getItem('unsyncedResponses') || '[]');
+            
+            document.getElementById('local-responses').innerHTML = `
+                <h3>Local Responses</h3>
+                <pre>${JSON.stringify(localResponses, null, 2)}</pre>
+            `;
+            
+            document.getElementById('unsynced-responses').innerHTML = `
+                <h3>Unsynced Responses</h3>
+                <pre>${JSON.stringify(unsyncedResponses, null, 2)}</pre>
+            `;
+        }
+
+        // Event Listeners
+        document.getElementById('save-response').addEventListener('click', async () => {
+            const questionId = document.getElementById('question-id').value;
+            const likertValue = parseInt(document.getElementById('likert-value').value);
+            const dontUnderstand = document.getElementById('dont-understand').checked;
+            
+            try {
+                await mockSurvey.saveResponse(questionId, likertValue, dontUnderstand);
+                alert('Response saved successfully!');
+                displayResponses();
+            } catch (error) {
+                alert('Error saving response: ' + error.message);
+            }
+        });
+
+        document.getElementById('sync-responses').addEventListener('click', async () => {
+            try {
+                const success = await mockSurvey.syncResponses();
+                if (success) {
+                    alert('All responses synced successfully!');
+                } else {
+                    alert('Some responses failed to sync. Check console for details.');
+                }
+                displayResponses();
+            } catch (error) {
+                alert('Error syncing responses: ' + error.message);
+            }
+        });
+
+        document.getElementById('clear-storage').addEventListener('click', () => {
+            localStorage.clear();
+            alert('Local storage cleared!');
+            displayResponses();
+        });
+
+        document.getElementById('toggle-offline').addEventListener('click', () => {
+            // Toggle the navigator.onLine property
+            Object.defineProperty(navigator, 'onLine', {
+                value: !navigator.onLine,
+                writable: true
+            });
+            
+            // Dispatch the appropriate event
+            const event = new Event(navigator.onLine ? 'online' : 'offline');
+            window.dispatchEvent(event);
+        });
+
+        // Set up event listeners for online/offline events
+        window.addEventListener('load', () => {
+            console.log('Page loaded, setting up event listeners');
+            updateConnectionStatus();
+            displayResponses();
+        });
+
+        window.addEventListener('online', () => {
+            console.log('Online event triggered');
+            updateConnectionStatus();
+            alert('You are now online! Click "Sync Responses" to sync any unsynced responses.');
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('Offline event triggered');
+            updateConnectionStatus();
+            alert('You are now offline. Responses will be saved locally until you are back online.');
+        });
+
+        // Initial setup
+        updateConnectionStatus();
+        displayResponses();
+    </script>
+</body>
+</html> 

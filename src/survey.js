@@ -97,6 +97,29 @@ function initSurvey(surveyJson) {
     
     // Display the first question
     displayQuestion(0);
+
+    // Add CSS for the submit button
+    const style = document.createElement('style');
+    style.textContent = `
+        .submit-btn {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 16px;
+            display: inline-block;
+            margin: 10px auto;
+        }
+        
+        .submit-btn:hover {
+            background-color: #45a049;
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 /**
@@ -173,7 +196,9 @@ function displayQuestion(index) {
                 
                 <div class="navigation-buttons">
                     ${index > 0 ? '<button id="prev-btn">Back</button>' : '<div style="width:100px;"></div>'}
-                    <button id="next-btn">${index < questions.length - 1 ? 'Next' : 'Finish'}</button>
+                    <button id="next-btn" class="${index === questions.length - 1 ? 'submit-btn' : ''}">
+                        ${index < questions.length - 1 ? 'Next' : 'FINAL SUBMISSION'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -189,11 +214,12 @@ function displayQuestion(index) {
             button.classList.add('selected');
             
             const response = parseInt(e.target.dataset.value);
+            const dontUnderstandCheckbox = document.getElementById('dont-understand-checkbox');
             
-            // Store the response
+            // Store the response, maintaining the don't understand state
             userResponses[question.id] = {
                 likert_value: response,
-                dont_understand: document.getElementById('dont-understand-checkbox')?.checked || false
+                dont_understand: dontUnderstandCheckbox ? dontUnderstandCheckbox.checked : false
             };
             
             // Save to localStorage
@@ -205,9 +231,12 @@ function displayQuestion(index) {
     const dontUnderstandCheckbox = document.getElementById('dont-understand-checkbox');
     if (dontUnderstandCheckbox) {
         dontUnderstandCheckbox.addEventListener('change', (e) => {
-            // Update the user response with the current checkbox state
+            // Get current likert value if it exists
+            const currentLikertValue = userResponses[question.id]?.likert_value;
+            
+            // Update the user response, maintaining the likert value
             userResponses[question.id] = {
-                likert_value: userResponses[question.id]?.likert_value || null,
+                likert_value: currentLikertValue,
                 dont_understand: e.target.checked
             };
             
@@ -227,22 +256,35 @@ function displayQuestion(index) {
     const nextBtn = document.getElementById('next-btn');
     if (nextBtn) {
         nextBtn.addEventListener('click', async () => {
-            // Check if user has selected a response
-            if (userResponses[question.id]?.likert_value === null && !userResponses[question.id]?.dont_understand) {
-                alert('Please select a response or check "I don\'t understand this question" before continuing.');
+            // Check if user has selected a valid response
+            const currentResponse = userResponses[question.id];
+            const hasValidLikertValue = currentResponse && currentResponse.likert_value !== null && [-2, -1, 1, 2].includes(currentResponse.likert_value);
+            
+            if (!hasValidLikertValue) {
+                alert('Please select a response (Strongly Disagree, Disagree, Agree, or Strongly Agree).');
                 return;
             }
             
-            // Save the response to the database before moving to the next question
+            // Save the response locally before moving to the next question
             try {
-                const response = userResponses[question.id];
-                await saveResponse(question.id, response.likert_value, response.dont_understand);
+                const response = {
+                    participant_id: localStorage.getItem('participantId'),
+                    question_key: question.id,
+                    likert_value: currentResponse.likert_value,
+                    dont_understand: currentResponse.dont_understand,
+                    inserted_at: new Date().toISOString()
+                };
+
+                // Save to localStorage
+                const responses = JSON.parse(localStorage.getItem('responses') || '{}');
+                responses[question.id] = response;
+                localStorage.setItem('responses', JSON.stringify(responses));
                 
                 if (index < questions.length - 1) {
                     displayQuestion(index + 1);
                 } else {
-                    // If this is the last question, show the survey complete page
-                    showSurveyComplete();
+                    // If this is the last question, submit the survey
+                    await submitSurvey();
                 }
             } catch (error) {
                 console.error('Error saving response:', error);
@@ -261,8 +303,69 @@ function showSurveyComplete() {
         <div class="survey-complete">
             <h2>Survey Complete!</h2>
             <p>Thank you for completing the survey.</p>
+            <button id="submit-survey-btn">Submit Survey</button>
         </div>
     `;
+
+    // Add event listener to submit button
+    const submitBtn = document.getElementById('submit-survey-btn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', async () => {
+            try {
+                // Get all responses from localStorage
+                const responses = JSON.parse(localStorage.getItem('responses') || '{}');
+                const responseArray = Object.values(responses);
+
+                if (responseArray.length === 0) {
+                    alert('No responses to submit. Please complete the survey first.');
+                    return;
+                }
+
+                if (!isOnline()) {
+                    alert('You must be online to submit the survey. Please check your internet connection and try again.');
+                    return;
+                }
+
+                // Submit responses to Supabase
+                const { error } = await supabase
+                    .from('responses')
+                    .upsert(responseArray, { 
+                        onConflict: ['participant_id', 'question_key'],
+                        ignoreDuplicates: false
+                    });
+
+                if (error) {
+                    console.error('Error submitting survey:', error);
+                    alert('Error submitting survey. Please try again.');
+                    return;
+                }
+
+                // Clear all survey-related data from localStorage
+                const keysToRemove = [
+                    'responses',
+                    'userResponses',
+                    'questionOrder',
+                    'currentQuestionIndex',
+                    'participantId',
+                    'passcode',
+                    'mode'
+                ];
+                
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+                
+                // Set survey submitted flag
+                localStorage.setItem('surveySubmitted', 'true');
+                
+                // Use a timeout to ensure localStorage is cleared before redirect
+                setTimeout(() => {
+                    window.location.href = '/results.html';
+                }, 100);
+            } catch (error) {
+                console.error('Error during submission:', error);
+                alert('Error submitting survey. Please try again.');
+            }
+        });
+    }
 }
 
 /**
@@ -274,43 +377,209 @@ function displayNextQuestion() {
 }
 
 /**
- * Saves a response to the database
- * @param {string} questionKey - The ID of the question
- * @param {number} likertValue - The response value
- * @param {boolean} dontUnderstand - Whether the user selected "Don't Understand"
+ * Checks if the device is online
+ * @returns {boolean} - True if online, false if offline
  */
-async function saveResponse(questionKey, likertValue, dontUnderstand = false) {
+function isOnline() {
+    return navigator.onLine;
+}
+
+/**
+ * Saves a response to local storage
+ * @param {string} questionId - The ID of the question
+ * @param {number} likertValue - The Likert scale value
+ * @param {boolean} dontUnderstand - Whether the user marked "don't understand"
+ * @returns {Promise<boolean>} - True if the response was saved successfully
+ */
+async function saveResponse(questionId, likertValue, dontUnderstand) {
+    const response = {
+        participant_id: localStorage.getItem('participantId'),
+        question_key: questionId,
+        likert_value: likertValue,
+        dont_understand: dontUnderstand,
+        inserted_at: new Date().toISOString()
+    };
+
+    // Store in local responses for navigation
+    userResponses[questionId] = {
+        likertValue,
+        dontUnderstand,
+        inserted_at: response.inserted_at
+    };
+
+    // Save to localStorage
+    const responses = JSON.parse(localStorage.getItem('responses') || '{}');
+    responses[questionId] = response;
+    localStorage.setItem('responses', JSON.stringify(responses));
+    
+    return true;
+}
+
+async function submitSurvey() {
+    const responses = JSON.parse(localStorage.getItem('responses') || '{}');
+    const responseArray = Object.values(responses);
+
     try {
-        console.log('Saving response:', {
-            participant_id: localStorage.getItem('participantId'),
-            question_key: questionKey,
-            likert_value: likertValue,
-            dont_understand: dontUnderstand
-        });
+        if (!isOnline()) {
+            alert('You must be online to submit the survey. Please check your internet connection and try again.');
+            return;
+        }
 
         const { error } = await supabase
             .from('responses')
-            .insert({
-                participant_id: localStorage.getItem('participantId'),
-                question_key: questionKey,
-                likert_value: likertValue,
-                dont_understand: dontUnderstand
+            .upsert(responseArray, { 
+                onConflict: ['participant_id', 'question_key'],
+                ignoreDuplicates: false
             });
 
         if (error) {
-            console.error('Supabase error:', error);
-            throw error;
+            console.error('Error submitting survey:', error);
+            alert('Error submitting survey. Please try again.');
+            return;
         }
+
+        // Clear all survey-related data from localStorage
+        const keysToRemove = [
+            'responses',
+            'userResponses',
+            'questionOrder',
+            'currentQuestionIndex',
+            'participantId',
+            'passcode',
+            'mode'
+        ];
+        
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
+        // Set survey submitted flag
+        localStorage.setItem('surveySubmitted', 'true');
+        
+        // Use a timeout to ensure localStorage is cleared before redirect
+        setTimeout(() => {
+            window.location.href = '/results.html';
+        }, 100);
     } catch (error) {
-        console.error('Error saving response:', error);
-        throw error;
+        console.error('Error during submission:', error);
+        alert('Error submitting survey. Please try again.');
     }
 }
+
+// Remove auto-sync on online event
+window.removeEventListener('online', syncResponses);
+
+// On login, check if the survey is already submitted
+const surveySubmitted = localStorage.getItem('surveySubmitted') === 'true';
+const currentPath = window.location.pathname;
+
+if (surveySubmitted && !currentPath.includes('results.html')) {
+    window.location.replace('/results.html');
+}
+
+/**
+ * Syncs any unsynced responses with the database
+ * @returns {Promise<boolean>} - True if all responses were synced successfully
+ */
+async function syncResponses() {
+    if (!isOnline()) {
+        console.log('Device is offline, cannot sync responses');
+        return false;
+    }
+
+    const unsyncedResponses = JSON.parse(localStorage.getItem('unsyncedResponses') || '[]');
+    if (unsyncedResponses.length === 0) {
+        console.log('No unsynced responses to sync');
+        return true;
+    }
+
+    console.log(`Syncing ${unsyncedResponses.length} responses...`);
+    const failedSyncs = [];
+    const MAX_RETRIES = 3;
+
+    for (const response of unsyncedResponses) {
+        let retryCount = 0;
+        let success = false;
+
+        while (retryCount < MAX_RETRIES && !success) {
+            try {
+                const { error } = await supabase
+                    .from('responses')
+                    .upsert(response, {
+                        onConflict: 'participant_id,question_key'
+                    });
+
+                if (error) {
+                    console.error(`Error syncing response (attempt ${retryCount + 1}):`, error);
+                    retryCount++;
+                    // Wait before retrying (exponential backoff)
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+                } else {
+                    success = true;
+                }
+            } catch (error) {
+                console.error(`Error syncing response (attempt ${retryCount + 1}):`, error);
+                retryCount++;
+                // Wait before retrying (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+            }
+        }
+
+        if (!success) {
+            failedSyncs.push(response);
+        }
+    }
+
+    // Update localStorage with only the failed syncs
+    localStorage.setItem('unsyncedResponses', JSON.stringify(failedSyncs));
+
+    // Return true only if all responses were synced successfully
+    return failedSyncs.length === 0;
+}
+
+// Add event listeners for online/offline status
+let syncInProgress = false;
+let pendingSync = false;
+
+window.addEventListener('online', async () => {
+    console.log('Device is online, checking for unsynced responses...');
+    
+    if (syncInProgress) {
+        console.log('Sync already in progress, marking for later sync');
+        pendingSync = true;
+        return;
+    }
+
+    try {
+        syncInProgress = true;
+        const success = await syncResponses();
+        if (success) {
+            console.log('All responses synced successfully');
+        } else {
+            console.log('Some responses failed to sync, will retry later');
+        }
+    } catch (error) {
+        console.error('Error during sync:', error);
+    } finally {
+        syncInProgress = false;
+        if (pendingSync) {
+            pendingSync = false;
+            window.dispatchEvent(new Event('online'));
+        }
+    }
+});
+
+window.addEventListener('offline', () => {
+    console.log('Device is offline, responses will be saved locally');
+    // Clear any pending syncs
+    pendingSync = false;
+});
 
 // Export functions for use in other files
 export {
     fetchSurvey,
     initSurvey,
     displayNextQuestion,
-    displayQuestion
+    displayQuestion,
+    isOnline,
+    saveResponse,
+    syncResponses
 }; 
