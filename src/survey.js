@@ -358,7 +358,7 @@ function showSurveyComplete() {
                 
                 // Use a timeout to ensure localStorage is cleared before redirect
                 setTimeout(() => {
-                    window.location.href = '/results.html';
+                    window.location.href = 'results.html';
                 }, 100);
             } catch (error) {
                 console.error('Error during submission:', error);
@@ -456,7 +456,7 @@ async function submitSurvey() {
         
         // Use a timeout to ensure localStorage is cleared before redirect
         setTimeout(() => {
-            window.location.href = '/results.html';
+            window.location.href = 'results.html';
         }, 100);
     } catch (error) {
         console.error('Error during submission:', error);

@@ -204,9 +204,13 @@
     
     <div id="survey-container" style="display: none;"></div>
     
+    <!-- Add our JavaScript files as modules -->
+    <script type="module" src="survey.js"></script>
+    <script type="module" src="auth.js"></script>
+    <script type="module" src="supabase.js"></script>
     <script type="module">
-        import { fetchSurvey, initSurvey } from './src/survey.js';
-        import { handleLogin } from './src/auth.js';
+        import { fetchSurvey, initSurvey } from './survey.js';
+        import { handleLogin } from './auth.js';
         
         const loginForm = document.getElementById('login-form');
         const codeInput = document.getElementById('code-input');
